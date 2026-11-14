@@ -1,0 +1,34 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  font-family: Inter, 'Segoe UI', system-ui, sans-serif;
+  color: #f4f7ff;
+  background: #090d18;
+  color-scheme: dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  --ink: #f4f7ff;
+  --muted: #aebbd3;
+  --accent: #83e8ff;
+  --violet: #b5a1ff;
+  --border: #27334d;
+  --tint: #182541;
+  --surface: #10192a;
+  --highlight: linear-gradient(105deg, #81ebff, #a4c6ff 50%, #c0a6ff);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-width: 280px;
+  min-height: 100svh;
+  background:
+    radial-gradient(ellipse 50% 390px at 76% 24%, #251b51 0%, transparent 80%),
+    radial-gradient(ellipse 45% 480px at 10% 11%, #103842 0%, transparent 80%), radial-gradient(ellipse 37% 420px at 85% 72%, #11313c 0%, transparent 80%);
+}
+button, input, textarea { font: inherit; }
+button { cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+p, h1, h2, h3, figure, blockquote { margin: 0; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
