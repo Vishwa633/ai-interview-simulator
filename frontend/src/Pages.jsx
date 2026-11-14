@@ -42,8 +42,7 @@ export function AboutPage() {
             </li>
           ))}
         </ol>
-        <p className="page-note">Available now: a two-question text demo with example feedback. Personalized voice practice and interview history are in development.</p>
-        <a className="button button-primary" href="#sample">Try the sample interview <span aria-hidden="true">→</span></a>
+        <p className="page-note">Personalized voice practice and interview history are in development.</p>
       </section>
     </section>
   )
@@ -65,7 +64,6 @@ export function AccountPage({ mode }) {
         <img src={interviewerImage} alt="An AI interviewer framed by cyan and violet audio displays" />
         <div className="account-visual-copy">
           <p>Practice for the job <em>you want.</em></p>
-          <a className="sample-link" href="#sample">Try a sample interview <span aria-hidden="true">↗</span></a>
         </div>
       </div>
       <div className="form-card account-card">

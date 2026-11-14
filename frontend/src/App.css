@@ -3,7 +3,7 @@
 
 .shell { width: min(1200px, calc(100% - 100px)); margin-inline: auto; }
 .header-inner { height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
-.brand { display: inline-flex; align-items: center; gap: 10px; font-size: 19px; font-weight: 700; letter-spacing: -.045em; }
+.brand { display: inline-flex; align-items: center; gap: 10px; font-size: 19px; font-weight: 700; letter-spacing: normal; }
 .brand-mark { display: inline-flex; gap: 3px; align-items: center; justify-content: center; width: 35px; height: 35px; border-radius: 11px; background: var(--highlight); box-shadow: 0 0 18px #83e8ff25; }
 .brand-mark i { width: 2px; height: 7px; border-radius: 2px; background: #0d172b; }
 .brand-mark i:nth-child(even) { height: 12px; }
@@ -19,17 +19,13 @@
 .button-primary:not(:disabled):hover { background: linear-gradient(105deg, #b1f4ff, #d0beff); }
 .button-primary:disabled { opacity: .58; cursor: default; }
 .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); align-items: center; gap: clamp(28px, 5vw, 72px); padding-block: clamp(44px, 6vw, 90px); }
-.eyebrow { color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: .09em; }
-h1, h2 { font-weight: 750; letter-spacing: -.045em; text-wrap: balance; }
-.hero h1 { max-width: 10.5em; font-size: clamp(46px, 5.5vw, 80px); line-height: 1.03; letter-spacing: -.055em; }
+h1, h2 { font-weight: 650; letter-spacing: normal; text-wrap: balance; }
+.hero h1 { max-width: 15ch; font-size: clamp(38px, 4.7vw, 68px); line-height: 1.15; font-weight: 650; }
 .hero h1 em { color: var(--accent); font-style: normal; }
 @media (forced-colors: none) {
   .hero h1 em { background: var(--highlight); background-clip: text; color: transparent; }
 }
 .hero-description { font-size: 17px; line-height: 1.65; color: var(--muted); max-width: 39ch; margin-block: 21px 25px; }
-.hero-actions { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
-.sample-link { color: var(--muted); font-weight: 700; font-size: 14px; padding-block: 11px; }
-.sample-link:hover { color: var(--accent); }
 
 .hero-art {
   display: block;
@@ -51,7 +47,7 @@ h1, h2 { font-weight: 750; letter-spacing: -.045em; text-wrap: balance; }
 .site-footer .brand { font-size: 15px; }
 
 .panel { max-width: 760px; margin: 0 auto; padding-block: 48px 75px; }
-.panel h1 { font-size: clamp(36px, 6vw, 62px); line-height: 1.08; margin: 14px 0; }
+.panel h1 { font-size: clamp(36px, 6vw, 62px); line-height: 1.15; margin: 14px 0; }
 .back-link { display: inline-block; color: var(--muted); background: none; border: 0; padding: 0; margin-bottom: 14px; font-weight: 600; font-size: 14px; }
 .panel-intro { color: var(--muted); line-height: 1.6; margin-bottom: 23px; }
 .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
@@ -63,9 +59,6 @@ h1, h2 { font-weight: 750; letter-spacing: -.045em; text-wrap: balance; }
 .panel input::placeholder, .panel textarea::placeholder { color: #9baac4; }
 .panel textarea { resize: vertical; min-height: 100px; }
 .panel .button-primary { margin-top: 22px; }
-.answers { padding-left: 22px; line-height: 1.55; }
-.answers li { margin-bottom: 12px; overflow-wrap: anywhere; }
-.answers p { color: var(--muted); margin-top: 5px; }
 
 .site-header {
   border-bottom: 1px solid #b7c9f533;
@@ -76,14 +69,10 @@ h1, h2 { font-weight: 750; letter-spacing: -.045em; text-wrap: balance; }
 .button-primary { border-radius: 999px; background: linear-gradient(115deg, #93fff9, #43dff6); box-shadow: 0 0 25px #37ddec4b; }
 .button-primary:not(:disabled):hover { background: linear-gradient(115deg, #c5fffa, #74edff); }
 .hero { padding-block: clamp(43px, 5vw, 78px) clamp(29px, 3.5vw, 50px); gap: clamp(26px, 5vw, 75px); }
-.hero h1 { max-width: none; font-size: clamp(38px, 4.8vw, 75px); text-wrap: initial; }
-.hero h1 em { white-space: nowrap; }
 @media (forced-colors: none) {
   .hero h1 { background: linear-gradient(105deg, #59f7ef 5%, #8ed9ff 42%, #be86fb 94%); background-clip: text; color: transparent; }
   .hero h1 em { background: none; }
 }
-.sample-link { display: inline-flex; align-items: center; gap: 8px; border: 1px solid #a58af078; border-radius: 999px; padding: 10px 15px; color: #deceff; }
-.sample-link:hover { background: #b78cff19; color: #fff; }
 
 .how { padding-block: 6px 48px; border-top: 0; }
 .how h2 { font-size: clamp(23px, 2.7vw, 35px); }
@@ -119,7 +108,7 @@ h1, h2 { font-weight: 750; letter-spacing: -.045em; text-wrap: balance; }
 @media (max-width: 900px) {
   .shell { width: calc(100% - 48px); }
   .hero { gap: 25px; }
-  .hero h1 { font-size: clamp(38px, 6.1vw, 60px); }
+  .hero h1 { font-size: clamp(34px, 5.3vw, 49px); }
 }
 @media (max-width: 680px) {
   .shell { width: calc(100% - 36px); }
@@ -127,7 +116,6 @@ h1, h2 { font-weight: 750; letter-spacing: -.045em; text-wrap: balance; }
   .site-nav { gap: 14px; }
   .button-outline { font-size: 12px; gap: 7px; padding-inline: 10px; }
   .hero { grid-template-columns: 1fr; padding-block: 46px 39px; gap: 32px; }
-  .hero h1 { font-size: clamp(36px, 9vw, 58px); }
   .hero-description { margin-block: 20px 22px; font-size: 16px; }
   .steps, .fields { grid-template-columns: 1fr; }
 }
@@ -136,10 +124,7 @@ h1, h2 { font-weight: 750; letter-spacing: -.045em; text-wrap: balance; }
   .site-header .brand-mark { width: 27px; height: 27px; border-radius: 7px; }
   .button-outline { min-height: 37px; }
   .hero { padding-top: 38px; }
-  .hero h1 { font-size: clamp(35px, 8vw, 53px); }
-  .hero-break { display: none; }
-  .hero h1 em { white-space: normal; }
-  .hero-actions { gap: 11px; }
+  .hero h1 { font-size: clamp(31px, 7.5vw, 47px); }
 }
 
 @media (max-width: 520px) {
@@ -242,7 +227,7 @@ h1, h2 { font-weight: 750; letter-spacing: -.045em; text-wrap: balance; }
   font-size: 13px;
   font-weight: 700;
 }
-.process-list h3 { margin-block: 6px 5px; font-size: 17px; letter-spacing: -.015em; }
+.process-list h3 { margin-block: 6px 5px; font-size: 17px; letter-spacing: normal; }
 .process-list p { color: var(--muted); font-size: 14px; line-height: 1.65; }
 .how-practice .button-primary { margin-top: 0; }
 
@@ -277,9 +262,9 @@ h1, h2 { font-weight: 750; letter-spacing: -.045em; text-wrap: balance; }
 .account-visual-copy { margin-top: 23px; }
 .account-visual-copy p {
   font-size: clamp(24px, 3.4vw, 44px);
-  font-weight: 750;
+  font-weight: 650;
   line-height: 1.07;
-  letter-spacing: -.045em;
+  letter-spacing: normal;
   margin-bottom: 14px;
 }
 .account-visual-copy em { color: var(--accent); font-style: normal; }
@@ -327,7 +312,7 @@ h1, h2 { font-weight: 750; letter-spacing: -.045em; text-wrap: balance; }
 .reviews-hero .button { margin-top: 20px; }
 .reviews-summary { border: 1px solid #6888b759; border-radius: 16px; padding: 21px; background: #0d1628a8; }
 .review-score { display: flex; align-items: baseline; gap: 8px; }
-.review-score strong { font-size: clamp(36px, 5vw, 58px); line-height: 1; letter-spacing: -.055em; }
+.review-score strong { font-size: clamp(36px, 5vw, 58px); line-height: 1; letter-spacing: normal; }
 .review-score span, .reviews-summary p { color: var(--muted); font-size: 13px; }
 .reviews-summary .review-stars { display: block; margin-block: 8px; }
 .review-stars { color: #8beaff; font-size: 18px; letter-spacing: 2px; white-space: nowrap; }
