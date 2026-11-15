@@ -1,2 +1,5 @@
 fastapi==0.122.0
 uvicorn
+psycopg[binary]>=3.2,<4
+psycopg-pool>=3.2,<4
+python-dotenv>=1,<2

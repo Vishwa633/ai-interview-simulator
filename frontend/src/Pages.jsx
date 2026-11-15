@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import interviewerImage from './assets/ai-interviewer.jpeg'
 
 const practiceSteps = [
   ['Add your experience', 'Upload your CV and add your GitHub profile and portfolio. These give the interviewer real projects to ask you about.'],
@@ -48,103 +47,132 @@ export function AboutPage() {
   )
 }
 
-export function AccountPage({ mode }) {
-  const isLogin = mode === 'login'
-  const [showPassword, setShowPassword] = useState(false)
-  const [status, setStatus] = useState('')
-
-  function previewAccount(event) {
-    event.preventDefault()
-    setStatus(isLogin ? 'Sign-in will be available when account services are connected.' : 'Account creation will be available when account services are connected.')
-  }
-
-  return (
-    <section className="panel account-panel" aria-labelledby="account-title">
-      <div className="account-visual">
-        <img src={interviewerImage} alt="An AI interviewer framed by cyan and violet audio displays" />
-        <div className="account-visual-copy">
-          <p>Practice for the job <em>you want.</em></p>
-        </div>
-      </div>
-      <div className="form-card account-card">
-        <nav className="account-nav" aria-label="Account">
-          <a href="#login" aria-current={isLogin ? 'page' : undefined}>Login</a>
-          <a href="#register" aria-current={isLogin ? undefined : 'page'}>Register</a>
-        </nav>
-        <h1 id="account-title">{isLogin ? 'Welcome back.' : 'Create an account.'}</h1>
-        <p className="panel-intro">{isLogin ? 'Sign in to return to your interview practice.' : 'Create a profile for your interview practice and progress.'}</p>
-        <form className="page-form" onSubmit={previewAccount}>
-          {!isLogin && <label>Full name<input autoComplete="name" placeholder="Your full name" required /></label>}
-          <label>Email address<input type="email" autoComplete="email" placeholder="you@example.com" required /></label>
-          <div>
-            <label htmlFor="account-password">Password</label>
-            <div className="password-field">
-              <input id="account-password" type={showPassword ? 'text' : 'password'} autoComplete={isLogin ? 'current-password' : 'new-password'} minLength={isLogin ? undefined : 8} placeholder={isLogin ? 'Enter your password' : 'At least 8 characters'} required />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Hide password' : 'Show password'}>{showPassword ? 'Hide' : 'Show'}</button>
-            </div>
-          </div>
-          <button className="button button-primary form-submit" type="submit">{isLogin ? 'Log in' : 'Create account'}</button>
-          {status && <p className="form-status" role="status">{status}</p>}
-        </form>
-        <p className="page-note account-note">Account preview. Use sample details to try the form.</p>
-      </div>
-    </section>
-  )
-}
-
 const ratings = ['Poor', 'Fair', 'Okay', 'Good', 'Excellent']
 
 function Stars({ rating }) {
   return <span className="review-stars" role="img" aria-label={`${rating} out of 5 stars`}><span aria-hidden="true">{'★'.repeat(rating)}<span>{'★'.repeat(5 - rating)}</span></span></span>
 }
 
-export function SiteFeedbackPage() {
+export function SiteFeedbackPage({ accessToken, accountName }) {
   const [reviews, setReviews] = useState([])
+  const [ownedIds, setOwnedIds] = useState(() => new Set())
   const [loadState, setLoadState] = useState('loading')
-  const [name, setName] = useState('')
+  const [loadAttempt, setLoadAttempt] = useState(0)
+  const [editedName, setEditedName] = useState(null)
   const [rating, setRating] = useState(0)
   const [comment, setComment] = useState('')
-  const [status, setStatus] = useState('')
-  const [publishing, setPublishing] = useState(false)
+  const [action, setAction] = useState(null)
+  const [formError, setFormError] = useState('')
+  const [notice, setNotice] = useState('')
+  const [saving, setSaving] = useState(false)
   const dialog = useRef(null)
+  const listRequest = useRef(null)
+  const canReview = Boolean(accessToken)
+  const isEditing = action?.type === 'edit'
+  const isDeleting = action?.type === 'delete'
+  const defaultName = typeof accountName === 'string' && !accountName.includes('@')
+    ? Array.from(accountName.trim()).slice(0, 60).join('')
+    : ''
+  const name = editedName ?? defaultName
+
+  useEffect(() => {
+    if (action && canReview && !dialog.current.open) dialog.current.showModal()
+  }, [action, canReview])
 
   useEffect(() => {
     const request = new AbortController()
-    fetch('/api/feedback', { signal: request.signal })
+    listRequest.current = request
+    const signal = AbortSignal.any([request.signal, AbortSignal.timeout(18000)])
+    const options = { signal, cache: 'no-store' }
+    fetch('/api/feedback', options)
       .then(response => {
         if (!response.ok) throw new Error('Could not load reviews')
         return response.json()
       })
-      .then(data => { setReviews(data); setLoadState('ready') })
-      .catch(error => { if (error.name !== 'AbortError') setLoadState('error') })
-    return () => request.abort()
-  }, [])
+      .then(data => {
+        if (request.signal.aborted) return
+        setReviews(data)
+        setLoadState('ready')
+      })
+      .catch(() => { if (!request.signal.aborted) setLoadState('error') })
 
-  async function publishFeedback(event) {
+    if (accessToken) {
+      fetch('/api/feedback/mine', {
+        ...options,
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }).then(response => response.ok ? response.json() : null)
+        .then(ids => {
+          if (!request.signal.aborted && Array.isArray(ids)) setOwnedIds(new Set(ids))
+        })
+        .catch(() => {
+          // Public reviews are available even if ownership cannot be loaded.
+        })
+    }
+    return () => request.abort()
+  }, [accessToken, loadAttempt])
+
+  function openReview(type, review = null) {
+    setEditedName(review?.name ?? null)
+    setRating(review?.rating ?? 0)
+    setComment(review?.comment ?? '')
+    setNotice('')
+    setFormError('')
+    setAction({ type, id: review?.id })
+  }
+
+  async function saveReview(event) {
     event.preventDefault()
-    if (!rating || !comment.trim() || publishing) return
-    setPublishing(true)
-    setStatus('')
+    if (!canReview || saving || !action) return
+    if (!isDeleting && (!rating || !comment.trim())) return
+    if (!isDeleting && name.includes('@')) {
+      setFormError('Use a display name, such as your first name.')
+      return
+    }
+    setSaving(true)
+    setFormError('')
 
     try {
-      const response = await fetch('/api/feedback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, rating, comment: comment.trim() }),
+      const url = action.id ? `/api/feedback/${action.id}` : '/api/feedback'
+      const headers = { Authorization: `Bearer ${accessToken}` }
+      const method = isDeleting ? 'DELETE' : isEditing ? 'PATCH' : 'POST'
+      const options = { method, headers }
+      if (!isDeleting) {
+        headers['Content-Type'] = 'application/json'
+        options.body = JSON.stringify({ name, rating, comment: comment.trim() })
+      }
+      const response = await fetch(url, options)
+      if (!response.ok) {
+        if (response.status === 401) {
+          setFormError('Log in again to manage reviews.')
+          return
+        }
+        if (response.status === 404 && action.id) {
+          setFormError('This review is no longer available.')
+          setLoadAttempt(previous => previous + 1)
+          return
+        }
+        throw new Error('Could not save feedback')
+      }
+      const review = isDeleting ? null : await response.json()
+      listRequest.current?.abort()
+      setOwnedIds(previous => {
+        const next = new Set(previous)
+        if (isDeleting) next.delete(action.id)
+        else next.add(review.id)
+        return next
       })
-      if (!response.ok) throw new Error('Could not publish feedback')
-      const review = await response.json()
-      setReviews(previous => [review, ...previous.filter(item => item.id !== review.id)])
-      setLoadState('ready')
-      setRating(0)
-      setName('')
-      setComment('')
-      dialog.current.close()
-      setStatus('Your review is now public.')
+      setReviews(previous => {
+        if (isDeleting) return previous.filter(item => item.id !== action.id)
+        if (isEditing) return previous.map(item => item.id === review.id ? review : item)
+        return [review, ...previous]
+      })
+      setLoadAttempt(previous => previous + 1)
+      dialog.current?.close()
+      setNotice(isDeleting ? 'Review deleted.' : isEditing ? 'Review updated.' : 'Your review is now public.')
     } catch {
-      setStatus('Your review could not be published. Check the display name and try again.')
+      setFormError('Could not save your changes. Please try again.')
     } finally {
-      setPublishing(false)
+      setSaving(false)
     }
   }
 
@@ -157,63 +185,103 @@ export function SiteFeedbackPage() {
         <div>
           <h1 id="feedback-title">Community feedback</h1>
           <p className="panel-intro">See what people think of InterviewLoop and share your experience.</p>
-          <button className="button button-primary" type="button" disabled={loadState !== 'ready'} onClick={() => { setStatus(''); dialog.current.showModal() }}>Write a review <span aria-hidden="true">↗</span></button>
+          <button className="button button-primary" type="button" disabled={!canReview} onClick={() => openReview('create')}>
+            Write a review <span aria-hidden="true">↗</span>
+          </button>
+          {!canReview && <p className="review-login-hint"><a href="#login">Log in</a> to write a review.</p>}
         </div>
         <div className="reviews-summary">
           <div className="review-score"><strong>{count ? average.toFixed(1) : '—'}</strong><span>/ 5</span></div>
           <Stars rating={Math.round(average)} />
-          <p>{count} public {count === 1 ? 'review' : 'reviews'}</p>
+          <p>{loadState === 'ready' ? `${count} public ${count === 1 ? 'review' : 'reviews'}` : 'Public reviews'}</p>
         </div>
       </header>
 
       <section className="reviews-section" aria-labelledby="review-list-title">
         <h2 id="review-list-title">Latest reviews</h2>
-        {status === 'Your review is now public.' && <p className="review-notice" role="status">{status}</p>}
+        {notice && <p className="review-notice" role="status">{notice}</p>}
         {loadState === 'loading' && <p className="review-notice" role="status">Loading reviews…</p>}
-        {loadState === 'error' && <p className="review-notice" role="status">Reviews could not be loaded. Refresh the page to try again.</p>}
-        {loadState === 'ready' && (
-          count ? (
-            <ul className="reviews-grid">
-              {reviews.map(review => (
-                <li className="review-card" key={review.id}>
-                  <Stars rating={review.rating} />
-                  <blockquote>{review.comment}</blockquote>
+        {loadState === 'error' && (
+          <div className="review-notice review-load-error">
+            <p role="status">Reviews could not be loaded.</p>
+            <button className="button button-outline" type="button" onClick={() => {
+              setLoadState('loading')
+              setLoadAttempt(previous => previous + 1)
+            }}>Try again</button>
+          </div>
+        )}
+        {count > 0 && (
+          <ul className="reviews-grid">
+            {reviews.map(review => (
+              <li className="review-card" key={review.id}>
+                <Stars rating={review.rating} />
+                <blockquote>{review.comment}</blockquote>
+                <div className="review-card-footer">
                   <div className="review-author"><span aria-hidden="true">{Array.from(review.name)[0]?.toUpperCase()}</span>{review.name}</div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="reviews-empty">
-              <p>No reviews yet. Be the first to share your experience.</p>
-            </div>
-          )
+                  {canReview && ownedIds.has(review.id) && (
+                    <div className="review-card-actions">
+                      <button className="button button-outline review-icon-button" type="button" aria-label="Edit review" title="Edit review" onClick={() => openReview('edit', review)}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="m16 4 4 4M4 20l4.5-1 11-11a2.8 2.8 0 0 0-4-4l-11 11L4 20Z" />
+                        </svg>
+                      </button>
+                      <button className="button button-danger review-icon-button" type="button" aria-label="Delete review" title="Delete review" onClick={() => openReview('delete', review)}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5m4-5v5" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        {loadState === 'ready' && count === 0 && (
+          <div className="reviews-empty">
+            <p>No reviews yet. Be the first to share your experience.</p>
+          </div>
         )}
       </section>
 
-      <dialog className="review-dialog" ref={dialog} aria-labelledby="write-review-title">
+      <dialog className="review-dialog" ref={dialog} aria-labelledby="write-review-title"
+        onClose={() => setAction(null)} onCancel={event => { if (saving) event.preventDefault() }}>
         <div className="review-dialog-title">
-          <h2 id="write-review-title">Write a review</h2>
-          <button className="review-close" type="button" aria-label="Close review form" onClick={() => dialog.current.close()}>×</button>
+          <h2 id="write-review-title">{isDeleting ? 'Delete review?' : isEditing ? 'Edit your review' : 'Write a review'}</h2>
+          <button className="review-close" type="button" aria-label="Close review dialog" disabled={saving} onClick={() => dialog.current.close()}>×</button>
         </div>
-        <form className="page-form review-form" onSubmit={publishFeedback}>
-          <p className="feedback-storage">Your rating and message will be public. Leave out private details.</p>
-          <label>Display name <small>Optional</small><input maxLength={60} placeholder="Anonymous" value={name} onChange={event => setName(event.target.value)} /></label>
-          <fieldset className="rating-field">
-            <legend>Rating</legend>
-            <div className="rating-options">
-              {ratings.map((label, index) => (
-                <label className={`rating-option${rating > index ? ' rating-filled' : ''}`} key={label}>
-                  <input type="radio" name="rating" value={index + 1} checked={rating === index + 1} onChange={() => setRating(index + 1)} required />
-                  <span aria-hidden="true">★</span>
-                  <span className="visually-hidden">{index + 1} out of 5 · {label}</span>
-                </label>
-              ))}
+        {isDeleting ? (
+          <form className="page-form review-form" onSubmit={saveReview}>
+            <p className="feedback-storage">Your review will be removed from the public list.</p>
+            {formError && <p className="form-status account-error" role="alert">{formError}</p>}
+            <div className="review-actions">
+              <button className="button button-outline" type="button" disabled={saving} onClick={() => dialog.current.close()}>Cancel</button>
+              <button className="button button-danger" type="submit" disabled={saving}>{saving ? 'Deleting…' : 'Delete review'}</button>
             </div>
-          </fieldset>
-          <label>Your review<textarea rows="4" maxLength={1000} required value={comment} onChange={event => setComment(event.target.value)} /></label>
-          {status && <p className="form-status" role="status">{status}</p>}
-          <button className="button button-primary" type="submit" disabled={publishing || !rating || !comment.trim()}>{publishing ? 'Publishing…' : 'Publish review'}</button>
-        </form>
+          </form>
+        ) : (
+          <form className="page-form review-form" onSubmit={saveReview}>
+            <p className="feedback-storage">Your display name, rating, and message will be public. Leave out private details.</p>
+            <label>Display name <small>Optional</small><input maxLength={60} placeholder="Anonymous" value={name} onChange={event => setEditedName(event.target.value)} /></label>
+            <fieldset className="rating-field">
+              <legend>Rating</legend>
+              <div className="rating-options">
+                {ratings.map((label, index) => (
+                  <label className={`rating-option${rating > index ? ' rating-filled' : ''}`} key={label}>
+                    <input type="radio" name="rating" value={index + 1} checked={rating === index + 1} onChange={() => setRating(index + 1)} required />
+                    <span aria-hidden="true">★</span>
+                    <span className="visually-hidden">{index + 1} out of 5 · {label}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <label>Your review<textarea rows="4" maxLength={1000} required value={comment} onChange={event => setComment(event.target.value)} /></label>
+            {formError && <p className="form-status account-error" role="alert">{formError}</p>}
+            <button className="button button-primary" type="submit" disabled={!canReview || saving || !rating || !comment.trim()}>
+              {saving ? 'Saving…' : isEditing ? 'Save changes' : 'Publish review'}
+            </button>
+          </form>
+        )}
       </dialog>
     </section>
   )

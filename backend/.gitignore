@@ -1,3 +1,5 @@
 feedback.sqlite3*
 __pycache__/
 .venv/
+.env
+node_modules/

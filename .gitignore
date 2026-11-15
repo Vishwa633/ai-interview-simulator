@@ -1,0 +1,20 @@
+# Dependencies and build output
+node_modules/
+dist/
+dist-ssr/
+
+# Local environment files
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Local data and Python caches
+*.sqlite3
+*.sqlite3-*
+__pycache__/
+*.py[cod]
+.venv/
+
+# Logs
+*.log
