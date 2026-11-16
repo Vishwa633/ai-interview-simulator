@@ -5,13 +5,24 @@ const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 export function createSupabaseAuth({ url, publishableKey, secretKey, fetchAuth = fetch }) {
   const project = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(url ?? '') ? url.replace(/\/$/, '') : null
 
-  async function request(path, options) {
-    try {
-      return await fetchAuth(`${project}/auth/v1${path}`, {
-        ...options, redirect: 'error', signal: AbortSignal.timeout(8000),
-      })
-    } catch {
-      throw new HttpError(502, 'The account service is unavailable.')
+  async function request(path, options, attempts = 1) {
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      let response
+      try {
+        response = await fetchAuth(`${project}/auth/v1${path}`, {
+          ...options, redirect: 'error', signal: AbortSignal.timeout(12_000),
+        })
+      } catch (error) {
+        if (attempt < attempts) continue
+        console.error('Supabase Auth connection failed:', error.cause?.code ?? error.name)
+        throw new HttpError(502, 'The account service is unavailable. Please try again.')
+      }
+
+      if (attempt < attempts && [502, 503, 504].includes(response.status)) {
+        await response.body?.cancel()
+        continue
+      }
+      return response
     }
   }
 
@@ -21,11 +32,12 @@ export function createSupabaseAuth({ url, publishableKey, secretKey, fetchAuth =
     }
     const response = await request('/user', {
       headers: { apikey: publishableKey, Authorization: `Bearer ${token}` },
-    })
+    }, 2)
     if (!response.ok) {
       await response.body?.cancel()
       if ([400, 401, 403, 404].includes(response.status)) throw new HttpError(401, 'Please log in again.')
-      throw new HttpError(502, 'The account service is unavailable.')
+      console.error('Supabase Auth verification failed:', response.status)
+      throw new HttpError(502, 'The account service is unavailable. Please try again.')
     }
     const user = await response.json().catch(() => null)
     if (typeof user?.id !== 'string' || !uuidPattern.test(user.id)) {

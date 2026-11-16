@@ -4,7 +4,7 @@ const practiceSteps = [
   ['Add your experience', 'Upload your CV and add your GitHub profile and portfolio. These give the interviewer real projects to ask you about.'],
   ['Choose the role', 'Paste the job description so the practice questions focus on the skills and responsibilities you will likely need to discuss.'],
   ['Practice the interview', 'Answer questions in English. In voice mode you will hear each question and speak your answer. The interviewer can ask follow-ups about what you said.'],
-  ['Review your answers', 'Read feedback in Sinhala, see what you explained clearly, and find one thing to improve before the next interview.'],
+  ['Review your answers', 'Read feedback in English, see what you explained clearly, and find one thing to improve before the next interview.'],
   ['Build on your progress', 'A later session will use relevant notes from your earlier practice to ask a new question about a topic you want to improve.'],
 ]
 
@@ -25,7 +25,7 @@ export function AboutPage() {
           <h2>What you get out of it</h2>
           <ul>
             <li>Practice explaining your own projects and the choices you made.</li>
-            <li>Rehearse answers in English and review specific feedback in Sinhala.</li>
+            <li>Practice answering in English and get specific feedback in English.</li>
             <li>Know what to work on next and revisit it in a later session.</li>
           </ul>
         </section>

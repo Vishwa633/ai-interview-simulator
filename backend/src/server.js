@@ -1,6 +1,9 @@
 import { fileURLToPath } from 'node:url'
 import { createApp } from './app.js'
+import { createPostgresPool } from './database.js'
+import { createInterviewer } from './interview.js'
 import { createReviewStore } from './reviews.js'
+import { createPracticeStore } from './practice-store.js'
 import { createSupabaseAuth } from './supabase-auth.js'
 
 try {
@@ -10,8 +13,10 @@ try {
 }
 
 const port = Number(process.env.PORT ?? 8000)
+const pool = createPostgresPool(process.env.DATABASE_URL?.trim())
+const practices = createPracticeStore(pool)
 const reviews = await createReviewStore({
-  databaseUrl: process.env.DATABASE_URL?.trim(),
+  pool,
   sqlitePath: process.env.FEEDBACK_DATABASE || fileURLToPath(new URL('../feedback.sqlite3', import.meta.url)),
 })
 const auth = createSupabaseAuth({
@@ -20,7 +25,12 @@ const auth = createSupabaseAuth({
   secretKey: process.env.SUPABASE_SECRET_KEY?.trim(),
 })
 
-const server = createApp(reviews, auth).listen(port, '127.0.0.1')
+const interviewer = createInterviewer({
+  apiKey: process.env.GEMINI_API_KEY?.trim(),
+  model: process.env.GEMINI_MODEL?.trim() || undefined,
+})
+
+const server = createApp(reviews, auth, interviewer, practices).listen(port, '127.0.0.1')
 server.once('listening', () => console.log(`InterviewLoop API listening at http://127.0.0.1:${port}`))
 server.once('error', async error => {
   console.error('Backend could not start:', error.code ?? error.name)

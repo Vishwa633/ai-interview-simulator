@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs'
-import pg from 'pg'
 import { HttpError } from './http-error.js'
 
 function publicId(value) {
@@ -11,26 +9,8 @@ function presentReview(row, canEdit = row.can_edit) {
   return { id: publicId(row.id), name: row.name, rating: Number(row.rating), comment: row.comment, can_edit: Boolean(canEdit) }
 }
 
-async function openDatabase({ databaseUrl, sqlitePath }) {
-  if (databaseUrl) {
-    const endpoint = new URL(databaseUrl)
-    const ssl = { rejectUnauthorized: true }
-    const managedHost = /^(?:[^.]+\.pooler\.supabase\.com|db\.[^.]+\.supabase\.co)$/i
-    if (managedHost.test(endpoint.hostname) && !endpoint.searchParams.has('sslrootcert')) {
-      // pg lets the URI's sslmode override the CA passed in the Pool options.
-      endpoint.searchParams.delete('sslmode')
-      ssl.ca = readFileSync(new URL('./supabase-root-ca.pem', import.meta.url))
-    }
-    const pool = new pg.Pool({
-      connectionString: endpoint.toString(),
-      ssl,
-      max: 4,
-      min: 1,
-      connectionTimeoutMillis: 10000,
-      query_timeout: 12000,
-      idleTimeoutMillis: 60000,
-    })
-    pool.on('error', error => console.warn('Idle review database connection failed:', error.code ?? error.name))
+async function openDatabase({ pool, sqlitePath }) {
+  if (pool) {
     return {
       table: 'interviewloop.feedback',
       query: async (statement, parameters) => {

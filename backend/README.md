@@ -14,4 +14,8 @@ The bundled Supabase Root 2021 CA is used for hosted Supabase Postgres connectio
 
 Login, registration and password changes use Supabase Auth from the frontend. Express handles public reviews, review ownership and account deletion. Account deletion requires the server-side secret key in `.env`.
 
+Set `GEMINI_API_KEY` in `backend/.env` using a key from [Google AI Studio](https://aistudio.google.com/apikey). The default model is `gemini-3.5-flash-lite`. Set `GEMINI_MODEL` to override it. Apply `supabase_interviews.sql` in the Supabase SQL Editor to enable or upgrade practice history.
+
+New interviews adapt after each submitted answer and have no fixed question count. The user can pause and save a draft, resume from Practice history, or finish for an English summary. Each session privately stores the optional CV PDF (up to 4 MB), GitHub profile and portfolio links, job description, project notes, questions, answers, and summary. The first Gemini request reads the PDF, public portfolio page, and GitHub project context. Later requests use the saved source notes and conversation history. Setup opens the most recent interview that can still be resumed, or the latest completed interview as a fallback. Start fresh opens a blank setup and creates a new interview using only the new inputs. Previously saved interviews remain accessible from Practice history. Long conversations use the saved coverage notes and recent answers. Earlier practice sessions keep their original format.
+
 The previous Python server files are kept for rollback. Run one server on port 8000. Future Python features can run as a separate service on another port, which Express can call when it needs that feature.
