@@ -5,6 +5,8 @@ import { createInterviewer } from './interview.js'
 import { createReviewStore } from './reviews.js'
 import { createPracticeStore } from './practice-store.js'
 import { createSupabaseAuth } from './supabase-auth.js'
+import { createVoiceService } from './voice.js'
+import { createQuestionVoice } from './question-voice.js'
 
 try {
   process.loadEnvFile(fileURLToPath(new URL('../.env', import.meta.url)))
@@ -30,7 +32,13 @@ const interviewer = createInterviewer({
   model: process.env.GEMINI_MODEL?.trim() || undefined,
 })
 
-const server = createApp(reviews, auth, interviewer, practices).listen(port, '127.0.0.1')
+const voice = createVoiceService({
+  apiKey: process.env.ELEVENLABS_API_KEY?.trim(),
+  voiceId: process.env.ELEVENLABS_VOICE_ID?.trim() || undefined,
+})
+
+const questionVoice = createQuestionVoice({ apiKey: process.env.GEMINI_API_KEY?.trim() })
+const server = createApp(reviews, auth, interviewer, practices, voice, questionVoice).listen(port, '127.0.0.1')
 server.once('listening', () => console.log(`InterviewLoop API listening at http://127.0.0.1:${port}`))
 server.once('error', async error => {
   console.error('Backend could not start:', error.code ?? error.name)

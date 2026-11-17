@@ -2,6 +2,7 @@ import express from 'express'
 import { createAdaptivePractice } from './adaptive-practice.js'
 import { githubProfileInput } from './github-projects.js'
 import { HttpError } from './http-error.js'
+import { audioFormats, maxRecordingBytes } from './voice.js'
 import { interviewAnswerInput, interviewCvInput, interviewInput, plannedQuestionCount, portfolioUrlInput } from './interview.js'
 
 function bearerToken(request, required) {
@@ -31,7 +32,7 @@ function recordId(value, message) {
   return value
 }
 
-export function createApp(reviews, auth, interviewer, practices) {
+export function createApp(reviews, auth, interviewer, practices, voice, questionVoice) {
   const app = express()
   app.disable('x-powered-by')
   const parseJson = express.json({ limit: '24kb' })
@@ -94,19 +95,55 @@ export function createApp(reviews, auth, interviewer, practices) {
     if (usePracticeMemory !== undefined && typeof usePracticeMemory !== 'boolean') {
       throw new HttpError(422, 'Choose whether to use feedback from previous practice.')
     }
-    const practiceMemory = usePracticeMemory === false ? [] : await practices.relevantMemory(userId, context, cvPdf)
+    const practiceMemory = usePracticeMemory ? await practices.relevantMemory(userId, context, cvPdf) : []
     const prompt = practiceMemory.length ? { ...context, practiceMemory } : context
     const first = await interviewer.generateQuestion(prompt, userId, { cvPdf, githubUser, portfolioUrl })
     const cvName = cvPdf && typeof request.body?.cvName === 'string' ? request.body.cvName.trim().slice(0, 255) : undefined
     const sources = { cvPdf, cvName, githubUrl: githubUser ? `https://github.com/${githubUser}` : null, portfolioUrl }
-    response.status(201).json(await practices.createAdaptive(userId, context, sources, { ...first, practiceMemory }))
+    response.status(201).json(await practices.createAdaptive(userId, context, sources, { ...first, practiceMemory, requestedPracticeMemory: usePracticeMemory === true }))
   })
 
   app.get('/api/interviews/:id', async (request, response) => {
     const id = recordId(request.params.id, 'Invalid practice session ID.')
     const record = await practices.get(response.locals.userId, id)
     if (!record) throw new HttpError(404, 'Practice session not found.')
-    response.json(record)
+    response.json({ ...record, voiceEnabled: Boolean(voice?.enabled), questionVoiceEnabled: Boolean(questionVoice || voice?.enabled) })
+  })
+
+  async function voiceTurn(request, userId, turn) {
+    if (!Number.isSafeInteger(turn) || turn < 0) throw new HttpError(422, 'Invalid practice question number.')
+    const id = recordId(request.params.id, 'Invalid practice session ID.')
+    const record = await practices.get(userId, id)
+    const current = record?.adaptive?.turns?.[turn]
+    if (!current) throw new HttpError(404, 'Practice question not found.')
+    return { record, current }
+  }
+
+  app.post('/api/interviews/:id/voice/question', parseJson, async (request, response) => {
+    const { userId } = response.locals
+    const { current } = await voiceTurn(request, userId, request.body?.turn)
+    if (questionVoice) {
+      const audio = await questionVoice(current.question, userId)
+      return response.type('audio/wav').send(audio)
+    }
+    if (!voice?.enabled) throw new HttpError(503, 'The interviewer voice is unavailable.')
+    response.type('audio/mpeg').send(await voice.speak(current.question, userId))
+  })
+
+  const parseAudio = express.raw({ type: Object.keys(audioFormats), limit: maxRecordingBytes, inflate: false })
+  app.post('/api/interviews/:id/voice/transcribe', parseAudio, async (request, response) => {
+    const turn = typeof request.query.turn === 'string' && /^\d+$/.test(request.query.turn) ? Number(request.query.turn) : NaN
+    const { userId } = response.locals
+    const { record, current } = await voiceTurn(request, userId, turn)
+    if (record.summary || record.adaptive.readyForSummary || current.answer || turn !== record.adaptive.turns.length - 1) {
+      throw new HttpError(409, 'This practice question is no longer taking answers.')
+    }
+    const mimeType = request.is(Object.keys(audioFormats))
+    if (!mimeType || !Buffer.isBuffer(request.body) || !request.body.length) {
+      throw new HttpError(422, 'Record an answer in a supported audio format.')
+    }
+    if (!voice?.enabled) throw new HttpError(503, 'Microphone transcription requires ElevenLabs to be configured.')
+    response.json({ text: await voice.transcribe(request.body, mimeType, userId) })
   })
 
   const performAdaptive = createAdaptivePractice(practices, interviewer)

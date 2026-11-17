@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import interviewerImage from './assets/ai-interviewer.jpeg'
 import { requestInterview } from './interview-api.js'
+import { VoicePractice } from './VoicePractice.jsx'
 
 function FeedbackNotes({ feedback }) {
   return (
@@ -15,10 +15,10 @@ export function AdaptivePractice({ session, accessToken }) {
   const [record, setRecord] = useState(session)
   const [action, setAction] = useState('')
   const [error, setError] = useState('')
+  const [usingMic, setUsingMic] = useState(false)
   const request = useRef(null)
   const field = useRef(null)
   const heading = useRef(null)
-  const feedbackHeading = useRef(null)
   const { turns, readyForSummary } = record.adaptive
   const turnIndex = turns.length - 1
   const current = turns[turnIndex]
@@ -30,12 +30,12 @@ export function AdaptivePractice({ session, accessToken }) {
 
   useEffect(() => () => request.current?.abort(), [])
   useEffect(() => {
-    const target = showQuestion && current.clarification ? field : showQuestion && latestFeedback ? feedbackHeading : heading
-    target.current?.focus()
-  }, [turnIndex, summary, readyForSummary, showQuestion, latestFeedback, current.clarification])
+    const target = showQuestion && current.clarification ? field : heading
+    target.current?.focus({ preventScroll: showQuestion && turnIndex === 0 && !current.clarification })
+  }, [turnIndex, summary, readyForSummary, showQuestion, current.clarification])
 
   async function updateInterview(kind) {
-    if (!accessToken || request.current) return
+    if (!accessToken || request.current || usingMic) return
     const draft = field.current?.value ?? ''
     const answer = draft.trim()
     if (kind === 'answer' && answer.length < 20) {
@@ -66,16 +66,25 @@ export function AdaptivePractice({ session, accessToken }) {
     }
   }
 
+  function addTranscript(text) {
+    if (!field.current || typeof text !== 'string' || !text.trim()) throw new Error('No transcript was returned.')
+    const currentText = field.current.value.trim()
+    const combined = [currentText, text.trim()].filter(Boolean).join('\n\n')
+    if (combined.length > 3000) throw new Error('This transcript would exceed 3,000 characters. Shorten the draft or try a shorter recording.')
+    field.current.value = combined
+    setError('')
+  }
+
   return (
-    <section className="panel practice-page" aria-labelledby="practice-title">
+    <section className="panel practice-page adaptive-practice" aria-labelledby="practice-title">
       <header className="practice-toolbar">
         <h1 id="practice-title">Practice interview</h1>
         <div className="practice-toolbar-actions">
           {showQuestion ? (
             <>
-              <button className="button button-outline practice-edit" type="button" disabled={submitting || !accessToken}
+              <button className="button button-outline practice-edit" type="button" disabled={submitting || usingMic || !accessToken}
                 onClick={() => updateInterview('pause')}>{action === 'pause' ? 'Saving…' : 'Pause & save'}</button>
-              <button className="button button-outline practice-edit" type="button" disabled={submitting || !accessToken}
+              <button className="button button-outline practice-edit" type="button" disabled={submitting || usingMic || !accessToken}
                 onClick={() => updateInterview('finish')}>{action === 'finish' ? 'Preparing summary…' : 'Finish interview'}</button>
             </>
           ) : <a className="button button-outline practice-edit" href="#history">Practice history</a>}
@@ -83,25 +92,39 @@ export function AdaptivePractice({ session, accessToken }) {
       </header>
 
       {showQuestion && (
-        <div className="practice-stage">
-          <figure className="practice-portrait">
-            <img src={interviewerImage} alt="" />
-            <figcaption><span aria-hidden="true" /> AI interviewer</figcaption>
-          </figure>
-          <div>
-            {latestFeedback && !current.clarification && (
-              <section className="adaptive-answer-feedback" aria-labelledby="latest-answer-feedback">
-                <h2 id="latest-answer-feedback" ref={feedbackHeading} tabIndex={-1}>Feedback on question {saved.length}</h2>
-                <FeedbackNotes feedback={latestFeedback} />
-              </section>
-            )}
-            <h2 className="practice-step-title" ref={heading} tabIndex={-1}>Question {turnIndex + 1}</h2>
-            {record.adaptive.usesPracticeMemory && <p className="adaptive-memory-note">Using relevant feedback from previous interviews</p>}
-            <div className="practice-copy"><p>{current.question}</p></div>
+        <VoicePractice key={turnIndex} sessionId={record.id} turn={turnIndex} question={current.question}
+          accessToken={accessToken} voiceEnabled={session.voiceEnabled} questionVoiceEnabled={session.questionVoiceEnabled}
+          disabled={submitting || !accessToken}
+          canRecord={!current.answer} onRecordingChange={setUsingMic} onTranscript={addTranscript}
+          progress={(
+            <section className="practice-progress" aria-labelledby="practice-progress-title">
+              <h2 id="practice-progress-title">Interview progress</h2>
+              <dl className="practice-progress-count">
+                <dt>Questions answered</dt>
+                <dd>{saved.length}</dd>
+              </dl>
+              {latestFeedback && !current.clarification && (
+                <div className="practice-progress-feedback">
+                  <h3>Feedback on question {saved.length}</h3>
+                  <FeedbackNotes feedback={latestFeedback} />
+                </div>
+              )}
+              {saved.length === 0 && <p className="practice-progress-empty">Feedback appears here after your first answer.</p>}
+            </section>
+          )}>
+          {microphone => <>
+            <div className="practice-prompt">
+              <h2 className="practice-step-title" ref={heading} tabIndex={-1}>Question {turnIndex + 1}</h2>
+              <p className="practice-question">{current.question}</p>
+              {record.adaptive.usesPracticeMemory && <p className="adaptive-memory-note">Using relevant feedback from previous interviews</p>}
+              {turnIndex === 0 && record.adaptive.requestedPracticeMemory && !record.adaptive.usesPracticeMemory && (
+                <p className="adaptive-memory-note">No matching feedback was found. This interview uses your current setup.</p>
+              )}
+            </div>
             <form className="practice-answer" onSubmit={event => { event.preventDefault(); updateInterview('answer') }}>
               <label htmlFor="adaptive-answer">Your answer</label>
               <textarea key={turnIndex} id="adaptive-answer" ref={field} rows="5" required minLength={20} maxLength={3000}
-                defaultValue={current.answer ?? current.draft ?? ''} readOnly={submitting || Boolean(current.answer)}
+                defaultValue={current.answer ?? current.draft ?? ''} readOnly={submitting || usingMic || Boolean(current.answer)}
                 placeholder="Explain your approach and use a concrete example."
                 aria-describedby={current.clarification ? 'adaptive-answer-help adaptive-clarification' : 'adaptive-answer-help'} />
               <p className="practice-answer-help" id="adaptive-answer-help">
@@ -109,17 +132,20 @@ export function AdaptivePractice({ session, accessToken }) {
               </p>
               {current.clarification && <p className="practice-error" id="adaptive-clarification" role="status">{current.clarification}</p>}
               {error && <p className="practice-error" role="alert">{error}</p>}
-              <button className="button button-primary" type="submit" disabled={submitting || !accessToken}>
-                {action === 'answer' ? 'Preparing next question…' : current.answer ? 'Continue interview' : 'Submit answer'}
-                {action !== 'answer' && <span aria-hidden="true">→</span>}
-              </button>
+              <div className="practice-answer-footer">
+                {microphone}
+                <button className="button button-primary" type="submit" disabled={submitting || usingMic || !accessToken}>
+                  {action === 'answer' ? 'Preparing next question…' : current.answer ? 'Continue interview' : 'Submit answer'}
+                  {action !== 'answer' && <span aria-hidden="true">→</span>}
+                </button>
+              </div>
             </form>
-          </div>
-        </div>
+          </>}
+        </VoicePractice>
       )}
       {!showQuestion && latestFeedback && (
-        <section className="adaptive-answer-feedback" aria-labelledby="last-answer-feedback">
-          <h2 id="last-answer-feedback">Feedback on question {saved.length}</h2>
+        <section className="adaptive-answer-feedback" aria-labelledby="latest-answer-feedback">
+          <h2 id="latest-answer-feedback">Feedback on question {saved.length}</h2>
           <FeedbackNotes feedback={latestFeedback} />
         </section>
       )}

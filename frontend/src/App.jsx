@@ -75,13 +75,14 @@ function SetupField({ id, title, kind, help, optional, children }) {
   )
 }
 
-function Setup({ accessToken, checkingSession, fresh }) {
+function Setup({ accessToken, checkingSession, mode }) {
   const [generating, setGenerating] = useState(false)
   const [cvName, setCvName] = useState('')
   const [error, setError] = useState('')
   const request = useRef(null)
   const setupTitle = useRef(null)
   const cvInput = useRef(null)
+  const usePracticeMemory = mode === 'with-feedback'
   useEffect(() => () => request.current?.abort(), [])
   useEffect(() => { setupTitle.current?.focus() }, [])
 
@@ -108,7 +109,7 @@ function Setup({ accessToken, checkingSession, fresh }) {
       const cvPdf = await readCvPdf(cvFile)
       if (controller.signal.aborted) return
       const record = await requestInterview('/first-question', {
-        jobDescription, projectNotes, cvPdf, cvName: cvFile?.name, githubUrl, portfolioUrl, usePracticeMemory: false,
+        jobDescription, projectNotes, cvPdf, cvName: cvFile?.name, githubUrl, portfolioUrl, usePracticeMemory,
       }, accessToken, controller.signal)
       if (!record?.id) throw new Error('Could not open the saved question. Check Practice history.')
       if (!controller.signal.aborted) window.location.hash = `practice/${record.id}`
@@ -124,11 +125,11 @@ function Setup({ accessToken, checkingSession, fresh }) {
       <header className="setup-heading">
         <div>
           <h1 id="setup-title" ref={setupTitle} tabIndex={-1}>Set up your <em>interview.</em></h1>
-          <p className="panel-intro">{fresh
-            ? 'Add the details you want to use for this new interview.'
+          <p className="panel-intro">{usePracticeMemory
+            ? 'Revisit relevant feedback from completed interviews. If you used a CV before, upload the same PDF to match that practice.'
             : 'Add your experience and the role you want to practice for.'}</p>
         </div>
-        {fresh ? <div className="setup-heading-actions"><a className="button button-outline" href="#setup">Back to interview setup</a></div>
+        {mode ? <div className="setup-heading-actions"><a className="button button-outline" href="#setup">Back to interview setup</a></div>
           : <div className="setup-heading-visual" aria-hidden="true"><Waveform /></div>}
       </header>
       <form className="setup-form" onSubmit={startInterview}>
@@ -184,22 +185,22 @@ function Setup({ accessToken, checkingSession, fresh }) {
   )
 }
 
-function InterviewSetup({ accessToken, checkingSession, fresh }) {
+function InterviewSetup({ accessToken, checkingSession, mode }) {
   const [saved, setSaved] = useState(undefined)
   const [error, setError] = useState('')
   const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
-    if (fresh || !accessToken) return
+    if (mode || !accessToken) return
     const controller = new AbortController()
     requestInterview('/resume', undefined, accessToken, controller.signal)
       .then(record => { if (!controller.signal.aborted) setSaved(record) })
       .catch(error => { if (!controller.signal.aborted) setError(error.message) })
     return () => controller.abort()
-  }, [accessToken, fresh, attempt])
+  }, [accessToken, mode, attempt])
 
-  if (fresh || (!checkingSession && (!accessToken || saved === null))) {
-    return <Setup accessToken={accessToken} checkingSession={checkingSession} fresh={fresh} />
+  if (mode || (!checkingSession && (!accessToken || saved === null))) {
+    return <Setup accessToken={accessToken} checkingSession={checkingSession} mode={mode} />
   }
 
   return (
@@ -211,6 +212,7 @@ function InterviewSetup({ accessToken, checkingSession, fresh }) {
         </div>
         <div className="setup-heading-actions">
           <a className="button button-outline" href="#setup/new">Start fresh</a>
+          {saved && <a className="button button-outline" href="#setup/with-feedback">Use past feedback</a>}
           {saved && <a className="button button-primary" href={`#practice/${saved.id}`}>
             {saved.completed ? 'View interview' : 'Resume interview'} <span aria-hidden="true">→</span>
           </a>}
@@ -283,8 +285,8 @@ function App() {
   }, [path])
   const route = path === '#feedback' ? 'feedbacks' : path.slice(1)
   const practiceId = /^practice\/([1-9]\d{0,18})$/.exec(route)?.[1]
-  const freshSetup = route === 'setup/new'
-  const screen = practiceId ? 'practice' : freshSetup ? 'setup' : ['home', 'setup', 'about', 'feedbacks', 'login', 'register', 'account', 'history'].includes(route)
+  const setupMode = /^setup\/(new|with-feedback)$/.exec(route)?.[1]
+  const screen = practiceId ? 'practice' : setupMode ? 'setup' : ['home', 'setup', 'about', 'feedbacks', 'login', 'register', 'account', 'history'].includes(route)
     ? route
     : 'home'
   const user = session?.user
@@ -341,7 +343,7 @@ function App() {
       </header>
       <main id="home" className="shell">
         {user && logoutError && !confirmingLogout && <p className="form-status account-error" role="alert">{logoutError}</p>}
-        {screen === 'setup' && <InterviewSetup key={`${user?.id ?? 'guest'}:${freshSetup}`} fresh={freshSetup}
+        {screen === 'setup' && <InterviewSetup key={`${user?.id ?? 'guest'}:${setupMode ?? 'saved'}`} mode={setupMode}
           accessToken={session?.access_token} checkingSession={checkingSession} />}
         {screen === 'practice' && <SavedPracticePage key={`${user?.id ?? 'guest'}:${practiceId}`} id={practiceId}
           accessToken={session?.access_token} checkingSession={checkingSession} />}

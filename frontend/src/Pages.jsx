@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 
 const practiceSteps = [
-  ['Add your experience', 'Upload your CV and add your GitHub profile and portfolio. These give the interviewer real projects to ask you about.'],
-  ['Choose the role', 'Paste the job description so the practice questions focus on the skills and responsibilities you will likely need to discuss.'],
-  ['Practice the interview', 'Answer questions in English. In voice mode you will hear each question and speak your answer. The interviewer can ask follow-ups about what you said.'],
-  ['Review your answers', 'Read feedback in English, see what you explained clearly, and find one thing to improve before the next interview.'],
-  ['Build on your progress', 'A later session will use relevant notes from your earlier practice to ask a new question about a topic you want to improve.'],
+  ['Choose a role', <>Log in and select <strong>Set up an interview</strong>. Paste the job description so the interviewer knows which skills and responsibilities to ask about.</>],
+  ['Add your experience', <>Optionally upload a CV as a PDF up to 4 MB, share your public GitHub profile or portfolio, or write project notes about what you built and your part in it. Select <strong>Start practice interview</strong> to get your first question.</>],
+  ['Listen to the interviewer', <>Read the question on screen or select <strong>Listen to question</strong> to hear the AI interviewer ask it aloud in English. Select <strong>Stop audio</strong> to stop playback.</>],
+  ['Type or record your answer', <>Write your answer in English or select <strong>Record answer</strong> and allow microphone access. You can record up to 90 seconds. The timer tracks how long you have recorded, and the mic level shows how loudly your microphone picks you up. Select <strong>Stop &amp; transcribe</strong> to put a transcript in the answer box, then check and edit it.</>],
+  ['Submit and get feedback', <>Select <strong>Submit answer</strong> to save your response. The AI uses your setup and previous answers to ask follow-up questions. Check <strong>Interview progress</strong> for the number of answers you’ve submitted and the latest feedback in English.</>],
+  ['Pause and resume', <>Select <strong>Pause &amp; save</strong> to keep your place and any draft. Return through <strong>Resume interview</strong> or open that session in <strong>Practice history</strong> to continue with your saved setup and answers.</>],
+  ['Finish and review', <>Select <strong>Finish interview</strong> whenever you’re done. Your summary covers strengths, gaps, and what to practice next. Use <strong>Practice history</strong> to reopen the session and review its questions and saved answers.</>],
+  ['Practice a skill again', <>Select <strong>Use past feedback</strong> from setup or history to use relevant feedback from completed interviews. Upload the same CV if you used one before. This helps the interviewer choose topics to revisit.</>],
+  ['Start a fresh interview', <>Choose <strong>Start fresh</strong> from setup or <strong>New practice</strong> from history to enter a new job description and experience. The AI starts with the new setup, and your previous sessions are still available in history.</>],
 ]
 
 export function AboutPage() {
@@ -41,7 +45,8 @@ export function AboutPage() {
             </li>
           ))}
         </ol>
-        <p className="page-note">Personalized voice practice and interview history are in development.</p>
+        <a className="button button-primary" href="#setup">Set up an interview <span aria-hidden="true">→</span></a>
+        <p className="page-note">Want to share feedback about the site? Open <a className="history-text-link" href="#feedbacks">Feedbacks</a> to read public reviews or write your own after logging in.</p>
       </section>
     </section>
   )

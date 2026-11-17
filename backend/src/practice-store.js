@@ -49,10 +49,11 @@ export function createPracticeStore(pool) {
       `, [userId, cvPdf ? Buffer.from(cvPdf, 'base64') : null])
       return selectPracticeMemory(rows, jobDescription, projectNotes)
     },
-    async createAdaptive(userId, input, sources, { question, sourceContext, practiceMemory = [] }) {
+    async createAdaptive(userId, input, sources, { question, sourceContext, practiceMemory = [], requestedPracticeMemory = false }) {
       const state = {
         sourceContext, practiceMemory, coverage: '', readyForSummary: false, turns: [{ question }],
         ...(sources.cvName && { cvName: sources.cvName }),
+        ...(requestedPracticeMemory && { requestedPracticeMemory }),
       }
       const [record] = await query(`
         INSERT INTO ${table} (user_id, job_description, project_notes, question, cv_pdf, github_url, portfolio_url, adaptive_state)

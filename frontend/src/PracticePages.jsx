@@ -196,7 +196,10 @@ export function PracticeHistoryPage({ accessToken, checkingSession }) {
     <section className="panel practice-page" aria-labelledby="history-title">
       <header className="practice-toolbar">
         <h1 id="history-title">Practice history</h1>
-        <a className="button button-outline practice-edit" href="#setup/new">New practice</a>
+        <div className="practice-toolbar-actions">
+          <a className="button button-outline practice-edit" href="#setup/new">New practice</a>
+          {accessToken && <a className="button button-outline practice-edit" href="#setup/with-feedback">Use past feedback</a>}
+        </div>
       </header>
       {checkingSession || (accessToken && !page && !error) ? <p role="status">Loading your history…</p>
         : !accessToken ? <p><a className="history-text-link" href="#login">Log in</a> to see your saved practice.</p>
